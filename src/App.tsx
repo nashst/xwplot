@@ -16,6 +16,7 @@ import {
   Code,
   HelpCircle,
   Loader2,
+  Table as TableIcon,
 } from 'lucide-react';
 import {
   ScatterChart,
@@ -49,6 +50,8 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { parseCSV, ProcessedData, ColumnProfile } from './utils/dataProcessor';
 import { CorrelationMatrix } from './components/CorrelationMatrix';
+import { DataAlerts } from './components/DataAlerts';
+import { DataGrid } from './components/DataGrid';
 import { calculateLinearRegression } from './utils/regression';
 
 // Utility for Tailwind class merging
@@ -267,7 +270,7 @@ export default function App() {
     if (!chartRef.current) return;
     try {
       const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(chartRef.current, { backgroundColor: '#ffffff' });
+      const dataUrl = await toPng(chartRef.current, { backgroundColor: '#ffffff', pixelRatio: 2 });
       const link = document.createElement('a');
       link.download = `${chartType.toLowerCase().replace(' ', '-')}-export.png`;
       link.href = dataUrl;
@@ -643,6 +646,15 @@ export default function App() {
               </span>
             </a>
             <a
+              href="#data-grid"
+              className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-slate-100 transition-transform duration-200"
+            >
+              <TableIcon className="w-5 h-5" />
+              <span className="text-xs font-bold uppercase tracking-wider">
+                数据明细
+              </span>
+            </a>
+            <a
               href="#export-panel"
               className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-slate-100 transition-transform duration-200"
             >
@@ -699,6 +711,8 @@ export default function App() {
                     <StatCard title="重复行" value={data.stats.duplicates.toLocaleString()} />
                   </div>
 
+                  <DataAlerts data={data} />
+
                   <div className="space-y-4">
                     <h3 className="text-[0.7rem] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">
                       数据概况报告
@@ -718,6 +732,8 @@ export default function App() {
                   </div>
 
                   <CorrelationMatrix data={data} />
+                  
+                  <DataGrid data={data} />
                 </section>
 
                 <hr className="border-slate-200" />
