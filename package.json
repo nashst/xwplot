@@ -14,6 +14,9 @@
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/papaparse": "^5.5.2",
+    "@types/react-grid-layout": "^1.3.6",
+    "@types/react-plotly.js": "^2.6.4",
+    "@types/react-resizable": "^3.0.8",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
@@ -23,11 +26,16 @@
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "papaparse": "^5.5.3",
+    "plotly.js-basic-dist": "^3.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-grid-layout": "^2.2.3",
+    "react-plotly.js": "^2.6.0",
+    "react-resizable": "^3.1.3",
     "recharts": "^3.8.0",
     "tailwind-merge": "^3.5.0",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

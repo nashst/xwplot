@@ -17,35 +17,12 @@ import {
   HelpCircle,
   Loader2,
   Table as TableIcon,
+  LayoutDashboard,
+  FileSpreadsheet,
+  Presentation,
+  Database
 } from 'lucide-react';
-import {
-  ScatterChart,
-  Scatter,
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  AreaChart,
-  Area,
-  PieChart,
-  Pie,
-  Cell,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ComposedChart,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  LabelList,
-  Brush,
-  ReferenceLine,
-} from 'recharts';
+import Plot from 'react-plotly.js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { parseCSV, ProcessedData, ColumnProfile } from './utils/dataProcessor';
@@ -53,6 +30,11 @@ import { CorrelationMatrix } from './components/CorrelationMatrix';
 import { DataAlerts } from './components/DataAlerts';
 import { DataGrid } from './components/DataGrid';
 import { calculateLinearRegression } from './utils/regression';
+import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 // Utility for Tailwind class merging
 function cn(...inputs: ClassValue[]) {
@@ -231,39 +213,38 @@ const CategoricalProfileCard = ({ profile }: { profile: ColumnProfile }) => {
   );
 };
 
+import { useStore } from './store/useStore';
+
 export default function App() {
-  const [data, setData] = useState<ProcessedData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data, setData,
+    loading, setLoading,
+    error, setError,
+    chartType, setChartType,
+    xAxis, setXAxis,
+    yAxes, setYAxes,
+    colorBy, setColorBy,
+    appearanceOpen, setAppearanceOpen,
+    showGrid, setShowGrid,
+    showLegend, setShowLegend,
+    showLabels, setShowLabels,
+    smoothCurves, setSmoothCurves,
+    showTrendline, setShowTrendline,
+    legendPosition, setLegendPosition,
+    primaryColor, setPrimaryColor,
+    xAxisInterval, setXAxisInterval,
+    yAxisTickCount, setYAxisTickCount,
+    showBrush, setShowBrush,
+    typographyOpen, setTypographyOpen,
+    fontFamily, setFontFamily,
+    customXAxisLabel, setCustomXAxisLabel,
+    customYAxisLabel, setCustomYAxisLabel,
+    aspectRatio, setAspectRatio,
+    currentView, setCurrentView,
+    dashboardLayout, setDashboardLayout
+  } = useStore();
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Chart Editor State
-  const [chartType, setChartType] = useState('Scatter Plot');
-  const [xAxis, setXAxis] = useState<string>('');
-  const [yAxes, setYAxes] = useState<Record<string, boolean>>({});
-  const [colorBy, setColorBy] = useState<string>('');
-
-  // Appearance State
-  const [appearanceOpen, setAppearanceOpen] = useState(false);
-  const [showGrid, setShowGrid] = useState(true);
-  const [showLegend, setShowLegend] = useState(true);
-  const [showLabels, setShowLabels] = useState(false);
-  const [smoothCurves, setSmoothCurves] = useState(false);
-  const [showTrendline, setShowTrendline] = useState(false);
-  const [legendPosition, setLegendPosition] = useState<'top' | 'bottom' | 'left' | 'right'>('bottom');
-  const [primaryColor, setPrimaryColor] = useState(COLORS[0]);
-  const [xAxisInterval, setXAxisInterval] = useState<number | 'auto'>('auto');
-  const [yAxisTickCount, setYAxisTickCount] = useState<number | 'auto'>('auto');
-  const [showBrush, setShowBrush] = useState(false);
-
-  // Typography & Axes State
-  const [typographyOpen, setTypographyOpen] = useState(false);
-  const [fontFamily, setFontFamily] = useState('Inter');
-  const [customXAxisLabel, setCustomXAxisLabel] = useState('');
-  const [customYAxisLabel, setCustomYAxisLabel] = useState('');
-  const [aspectRatio, setAspectRatio] = useState('auto');
-
-  // Export Ref
   const chartRef = useRef<HTMLDivElement>(null);
 
   const handleExportPNG = async () => {
@@ -316,30 +297,49 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const processed = await parseCSV(source);
-      setData(processed);
+      const worker = new Worker(new URL('./workers/dataWorker.ts', import.meta.url), { type: 'module' });
       
-      // Auto-select initial chart config
-      const numCols = processed.profiles.filter(p => p.type === 'numeric');
-      const catCols = processed.profiles.filter(p => p.type === 'categorical');
-      
-      if (numCols.length > 0) {
-        setXAxis(numCols[0].name);
-        const initialYAxes: Record<string, boolean> = {};
-        numCols.forEach((col, i) => {
-          initialYAxes[col.name] = i === 1 || (numCols.length === 1 && i === 0);
-        });
-        setYAxes(initialYAxes);
-      }
-      if (catCols.length > 0) {
-        setColorBy(catCols[0].name);
-      } else {
-        setColorBy('');
-      }
+      worker.onmessage = (e) => {
+        if (e.data.type === 'SUCCESS') {
+          const processed = e.data.data;
+          setData(processed);
+          
+          // Auto-select initial chart config
+          const numCols = processed.profiles.filter((p: any) => p.type === 'numeric');
+          const catCols = processed.profiles.filter((p: any) => p.type === 'categorical');
+          
+          if (numCols.length > 0) {
+            setXAxis(numCols[0].name);
+            const initialYAxes: Record<string, boolean> = {};
+            numCols.forEach((col: any, i: number) => {
+              initialYAxes[col.name] = i === 1 || (numCols.length === 1 && i === 0);
+            });
+            setYAxes(initialYAxes);
+          }
+          if (catCols.length > 0) {
+            setColorBy(catCols[0].name);
+          } else {
+            setColorBy('');
+          }
+          setLoading(false);
+          worker.terminate();
+        } else if (e.data.type === 'ERROR') {
+          setError(e.data.error || 'Failed to parse CSV');
+          setLoading(false);
+          worker.terminate();
+        }
+      };
+
+      worker.onerror = (err) => {
+        setError(err.message || 'Worker error occurred');
+        setLoading(false);
+        worker.terminate();
+      };
+
+      worker.postMessage({ source });
 
     } catch (err: any) {
-      setError(err.message || 'Failed to parse CSV');
-    } finally {
+      setError(err.message || 'Failed to load data');
       setLoading(false);
     }
   };
@@ -394,167 +394,150 @@ export default function App() {
     const xLabel = customXAxisLabel || xAxis;
     const yLabel = customYAxisLabel || selectedYAxes[0];
 
-    const commonProps = {
-      margin: { top: 20, right: 30, bottom: 5, left: yLabel ? 25 : 5 },
-      style: { fontFamily },
+    const layout: any = {
+      font: { family: fontFamily },
+      margin: { t: 40, r: 40, b: 60, l: yLabel ? 60 : 40 },
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: 'transparent',
+      showlegend: showLegend,
+      legend: {
+        orientation: legendPosition === 'top' || legendPosition === 'bottom' ? 'h' : 'v',
+        x: legendPosition === 'right' ? 1.05 : legendPosition === 'left' ? -0.2 : 0.5,
+        y: legendPosition === 'top' ? 1.1 : legendPosition === 'bottom' ? -0.2 : 0.5,
+        xanchor: legendPosition === 'top' || legendPosition === 'bottom' ? 'center' : 'left',
+        yanchor: legendPosition === 'left' || legendPosition === 'right' ? 'middle' : 'top',
+      },
+      xaxis: {
+        title: xLabel,
+        showgrid: showGrid,
+        gridcolor: '#e2e8f0',
+        zeroline: false,
+        dtick: xAxisInterval === 'auto' ? undefined : xAxisInterval,
+        rangeslider: showBrush ? { visible: true } : undefined,
+      },
+      yaxis: {
+        title: yLabel,
+        showgrid: showGrid,
+        gridcolor: '#e2e8f0',
+        zeroline: false,
+        nticks: yAxisTickCount === 'auto' ? undefined : yAxisTickCount,
+      },
+      autosize: true,
     };
-    
-    const legendAlign = legendPosition === 'left' || legendPosition === 'right' ? legendPosition : 'center';
-    const legendVerticalAlign = legendPosition === 'top' || legendPosition === 'bottom' ? legendPosition : 'middle';
-    const legendLayout = legendPosition === 'left' || legendPosition === 'right' ? 'vertical' : 'horizontal';
+
+    let plotData: any[] = [];
 
     if (chartType === 'Scatter Plot') {
-      let trendlineData = null;
-      if (showTrendline && selectedYAxes.length > 0) {
-        trendlineData = calculateLinearRegression(chartData, xAxis, selectedYAxes[0]);
+      if (colorBy && groupedScatterData) {
+        Object.entries(groupedScatterData).forEach(([group, groupData], i) => {
+          plotData.push({
+            x: groupData.map(d => d[xAxis]),
+            y: groupData.map(d => d[selectedYAxes[0]]),
+            mode: showLabels ? 'markers+text' : 'markers',
+            type: 'scatter',
+            name: group,
+            text: showLabels ? groupData.map(d => d[selectedYAxes[0]]) : undefined,
+            textposition: 'top center',
+            marker: { color: COLORS[i % COLORS.length], size: 8, opacity: 0.7 },
+          });
+        });
+      } else {
+        plotData.push({
+          x: chartData.map(d => d[xAxis]),
+          y: chartData.map(d => d[selectedYAxes[0]]),
+          mode: showLabels ? 'markers+text' : 'markers',
+          type: 'scatter',
+          name: 'Data',
+          text: showLabels ? chartData.map(d => d[selectedYAxes[0]]) : undefined,
+          textposition: 'top center',
+          marker: { color: primaryColor, size: 8, opacity: 0.7 },
+        });
       }
 
-      return (
-        <ResponsiveContainer width="100%" height="100%">
-          <ScatterChart {...commonProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />}
-            <XAxis 
-              type="number" 
-              dataKey={xAxis} 
-              name={xLabel}
-              domain={['auto', 'auto']} 
-              tickCount={xAxisInterval === 'auto' ? 5 : xAxisInterval}
-            />
-            <YAxis 
-              type="number" 
-              dataKey={selectedYAxes[0]} 
-              name={yLabel} 
-              domain={['auto', 'auto']} 
-              label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', offset: -15, style: { textAnchor: 'middle' } } : undefined}
-              tickCount={yAxisTickCount === 'auto' ? 5 : yAxisTickCount}
-            />
-            <Tooltip
-              cursor={{ strokeDasharray: '3 3' }}
-              contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 30px rgba(25, 28, 30, 0.06)' }}
-            />
-            {colorBy && groupedScatterData ? (
-              Object.entries(groupedScatterData).map(([group, groupData], i) => (
-                <Scatter key={group} name={group} data={groupData} fill={COLORS[i % COLORS.length]} opacity={0.7}>
-                  {showLabels && <LabelList dataKey={selectedYAxes[0]} position="top" />}
-                </Scatter>
-              ))
-            ) : (
-              <Scatter name="Data" data={chartData} fill={primaryColor} opacity={0.7}>
-                {showLabels && <LabelList dataKey={selectedYAxes[0]} position="top" />}
-              </Scatter>
-            )}
-            {showTrendline && trendlineData && (
-              <ReferenceLine 
-                segment={[
-                  { x: trendlineData.points[0][xAxis], y: trendlineData.points[0][selectedYAxes[0]] },
-                  { x: trendlineData.points[1][xAxis], y: trendlineData.points[1][selectedYAxes[0]] }
-                ]} 
-                stroke="#ef4444" 
-                strokeDasharray="3 3" 
-                strokeWidth={2}
-              />
-            )}
-            {showLegend && colorBy && <Legend align={legendAlign} verticalAlign={legendVerticalAlign} layout={legendLayout} />}
-            {showBrush && <Brush dataKey={xAxis} height={30} stroke="#040057" />}
-          </ScatterChart>
-        </ResponsiveContainer>
-      );
-    }
+      if (showTrendline && selectedYAxes.length > 0) {
+        const trendlineData = calculateLinearRegression(chartData, xAxis, selectedYAxes[0]);
+        if (trendlineData) {
+          plotData.push({
+            x: [trendlineData.points[0][xAxis], trendlineData.points[1][xAxis]],
+            y: [trendlineData.points[0][selectedYAxes[0]], trendlineData.points[1][selectedYAxes[0]]],
+            mode: 'lines',
+            type: 'scatter',
+            name: 'Trendline',
+            line: { color: '#ef4444', dash: 'dash', width: 2 },
+            showlegend: false,
+          });
+        }
+      }
+    } else if (chartType === 'Pie Chart') {
+      const pieData = chartData.slice(0, 20);
+      plotData.push({
+        values: pieData.map(d => d[selectedYAxes[0] || xAxis]),
+        labels: pieData.map(d => d[xAxis]),
+        type: 'pie',
+        textinfo: showLabels ? 'label+percent' : 'none',
+        marker: { colors: COLORS },
+      });
+      layout.xaxis.visible = false;
+      layout.yaxis.visible = false;
+    } else if (chartType === 'Radar Chart') {
+      const radarData = chartData.slice(0, 10);
+      selectedYAxes.forEach((y, i) => {
+        plotData.push({
+          type: 'scatterpolar',
+          r: radarData.map(d => d[y]),
+          theta: radarData.map(d => d[xAxis]),
+          fill: 'toself',
+          name: selectedYAxes.length === 1 && customYAxisLabel ? customYAxisLabel : y,
+          line: { color: selectedYAxes.length === 1 ? primaryColor : COLORS[i % COLORS.length] },
+        });
+      });
+      layout.polar = {
+        radialaxis: { visible: true, range: [0, Math.max(...radarData.map(d => Math.max(...selectedYAxes.map(y => d[y]))))] }
+      };
+      layout.xaxis.visible = false;
+      layout.yaxis.visible = false;
+    } else {
+      // Line, Bar, Area
+      const plotType = chartType === 'Bar Chart' ? 'bar' : 'scatter';
+      const fill = chartType === 'Area Chart' ? 'tozeroy' : 'none';
+      const lineShape = smoothCurves ? 'spline' : 'linear';
 
-    if (chartType === 'Pie Chart') {
-      const pieData = chartData.slice(0, 20); // Limit to 20 for pie chart readability
-      return (
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart {...commonProps}>
-            <Tooltip
-              contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 30px rgba(25, 28, 30, 0.06)' }}
-            />
-            {showLegend && <Legend align={legendAlign} verticalAlign={legendVerticalAlign} layout={legendLayout} />}
-            <Pie
-              data={pieData}
-              dataKey={selectedYAxes[0] || xAxis}
-              nameKey={xAxis}
-              cx="50%"
-              cy="50%"
-              outerRadius="80%"
-              fill={primaryColor}
-              label={showLabels}
-            >
-              {pieData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-      );
+      selectedYAxes.forEach((y, i) => {
+        plotData.push({
+          x: chartData.map(d => d[xAxis]),
+          y: chartData.map(d => d[y]),
+          type: plotType,
+          mode: chartType === 'Bar Chart' ? undefined : (showLabels ? 'lines+text' : 'lines'),
+          fill: fill,
+          name: selectedYAxes.length === 1 && customYAxisLabel ? customYAxisLabel : y,
+          line: chartType === 'Bar Chart' ? undefined : { shape: lineShape, color: selectedYAxes.length === 1 ? primaryColor : COLORS[i % COLORS.length] },
+          marker: chartType === 'Bar Chart' ? { color: selectedYAxes.length === 1 ? primaryColor : COLORS[i % COLORS.length] } : undefined,
+          text: showLabels ? chartData.map(d => d[y]) : undefined,
+          textposition: 'top center',
+        });
+      });
     }
-
-    if (chartType === 'Radar Chart') {
-      const radarData = chartData.slice(0, 10); // Limit for readability
-      return (
-        <ResponsiveContainer width="100%" height="100%">
-          <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData} {...commonProps}>
-            <PolarGrid />
-            <PolarAngleAxis dataKey={xAxis} />
-            <PolarRadiusAxis />
-            <Tooltip
-              contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 30px rgba(25, 28, 30, 0.06)' }}
-            />
-            {showLegend && <Legend align={legendAlign} verticalAlign={legendVerticalAlign} layout={legendLayout} />}
-            {selectedYAxes.map((y, i) => (
-              <Radar
-                key={y}
-                name={selectedYAxes.length === 1 && customYAxisLabel ? customYAxisLabel : y}
-                dataKey={y}
-                stroke={selectedYAxes.length === 1 ? primaryColor : COLORS[i % COLORS.length]}
-                fill={selectedYAxes.length === 1 ? primaryColor : COLORS[i % COLORS.length]}
-                fillOpacity={0.6}
-              />
-            ))}
-          </RadarChart>
-        </ResponsiveContainer>
-      );
-    }
-
-    // For Line, Bar, Area
-    const ChartComponent = chartType === 'Line Graph' ? LineChart : chartType === 'Bar Chart' ? BarChart : AreaChart;
-    const DataComponent = chartType === 'Line Graph' ? Line : chartType === 'Bar Chart' ? Bar : Area;
-    const curveType = smoothCurves ? 'monotone' : 'linear';
 
     return (
-      <ResponsiveContainer width="100%" height="100%">
-        {/* @ts-ignore */}
-        <ChartComponent data={chartData} {...commonProps}>
-          {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />}
-          <XAxis 
-            dataKey={xAxis} 
-            interval={xAxisInterval === 'auto' ? 'preserveEnd' : xAxisInterval}
-          />
-          <YAxis 
-            label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', offset: -15, style: { textAnchor: 'middle' } } : undefined}
-            tickCount={yAxisTickCount === 'auto' ? 5 : yAxisTickCount}
-          />
-          <Tooltip
-            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 30px rgba(25, 28, 30, 0.06)' }}
-          />
-          {showLegend && <Legend align={legendAlign} verticalAlign={legendVerticalAlign} layout={legendLayout} />}
-          {selectedYAxes.map((y, i) => (
-            // @ts-ignore
-            <DataComponent
-              key={y}
-              type={curveType}
-              dataKey={y}
-              name={selectedYAxes.length === 1 && customYAxisLabel ? customYAxisLabel : y}
-              stroke={selectedYAxes.length === 1 ? primaryColor : COLORS[i % COLORS.length]}
-              fill={selectedYAxes.length === 1 ? primaryColor : COLORS[i % COLORS.length]}
-              fillOpacity={chartType === 'Area Chart' ? 0.3 : 1}
-            >
-              {showLabels && <LabelList dataKey={y} position="top" />}
-            </DataComponent>
-          ))}
-          {showBrush && <Brush dataKey={xAxis} height={30} stroke="#040057" />}
-        </ChartComponent>
-      </ResponsiveContainer>
+      <Plot
+        data={plotData}
+        layout={layout}
+        useResizeHandler={true}
+        style={{ width: '100%', height: '100%' }}
+        config={{
+          responsive: true,
+          displayModeBar: true,
+          displaylogo: false,
+          modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+          toImageButtonOptions: {
+            format: 'png',
+            filename: `${chartType.toLowerCase().replace(' ', '-')}-export`,
+            height: 1080,
+            width: 1920,
+            scale: 2
+          }
+        }}
+      />
     );
   };
 
@@ -616,53 +599,42 @@ export default function App() {
           </div>
 
           <nav className="flex flex-col gap-1 p-4 border-t border-slate-200">
-            <a
-              href="#exploration-module"
-              className="flex items-center gap-3 px-3 py-2 bg-white text-[#040057] shadow-sm rounded-md transition-transform duration-200"
+            <button
+              onClick={() => setCurrentView('data')}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 text-left",
+                currentView === 'data' ? "bg-white text-[#040057] shadow-sm" : "text-slate-500 hover:bg-slate-100"
+              )}
+            >
+              <Database className="w-5 h-5" />
+              <span className="text-xs font-bold uppercase tracking-wider">
+                数据探索
+              </span>
+            </button>
+            <button
+              onClick={() => setCurrentView('chart')}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 text-left",
+                currentView === 'chart' ? "bg-white text-[#040057] shadow-sm" : "text-slate-500 hover:bg-slate-100"
+              )}
             >
               <BarChart3 className="w-5 h-5" />
               <span className="text-xs font-bold uppercase tracking-wider">
-                数据映射
+                图表构建
               </span>
-            </a>
-            <a
-              href="#chart-editor"
-              onClick={() => setAppearanceOpen(true)}
-              className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-slate-100 transition-transform duration-200"
+            </button>
+            <button
+              onClick={() => setCurrentView('dashboard')}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 text-left",
+                currentView === 'dashboard' ? "bg-white text-[#040057] shadow-sm" : "text-slate-500 hover:bg-slate-100"
+              )}
             >
-              <Palette className="w-5 h-5" />
+              <LayoutDashboard className="w-5 h-5" />
               <span className="text-xs font-bold uppercase tracking-wider">
-                外观设置
+                数据看板
               </span>
-            </a>
-            <a
-              href="#chart-editor"
-              onClick={() => setTypographyOpen(true)}
-              className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-slate-100 transition-transform duration-200"
-            >
-              <Type className="w-5 h-5" />
-              <span className="text-xs font-bold uppercase tracking-wider">
-                排版与坐标轴
-              </span>
-            </a>
-            <a
-              href="#data-grid"
-              className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-slate-100 transition-transform duration-200"
-            >
-              <TableIcon className="w-5 h-5" />
-              <span className="text-xs font-bold uppercase tracking-wider">
-                数据明细
-              </span>
-            </a>
-            <a
-              href="#export-panel"
-              className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-slate-100 transition-transform duration-200"
-            >
-              <Download className="w-5 h-5" />
-              <span className="text-xs font-bold uppercase tracking-wider">
-                导出图表
-              </span>
-            </a>
+            </button>
           </nav>
         </aside>
 
@@ -693,63 +665,64 @@ export default function App() {
             {data && !loading && (
               <>
                 {/* Data Exploration Module */}
-                <section id="exploration-module">
-                  <div className="flex items-baseline justify-between mb-8">
-                    <h1 className="text-3xl font-extrabold tracking-tight text-[#040057]">
-                      1. 数据探索
-                    </h1>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-                    <StatCard title="总变量数" value={data.stats.totalVariables} />
-                    <StatCard title="观测值" value={data.stats.observations.toLocaleString()} />
-                    <StatCard 
-                      title="缺失单元格" 
-                      value={`${data.stats.missingCellsPercentage.toFixed(2)}%`} 
-                      isError={data.stats.missingCellsPercentage > 0} 
-                    />
-                    <StatCard title="重复行" value={data.stats.duplicates.toLocaleString()} />
-                  </div>
-
-                  <DataAlerts data={data} />
-
-                  <div className="space-y-4">
-                    <h3 className="text-[0.7rem] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">
-                      数据概况报告
-                    </h3>
-                    <div className="grid grid-cols-1 gap-4">
-                      {data.profiles.slice(0, 10).map((profile) => (
-                        profile.type === 'numeric' 
-                          ? <NumericProfileCard key={profile.name} profile={profile} />
-                          : <CategoricalProfileCard key={profile.name} profile={profile} />
-                      ))}
-                      {data.profiles.length > 10 && (
-                        <div className="text-center text-sm text-slate-500 py-4">
-                          仅显示前 10 个变量。
-                        </div>
-                      )}
+                {currentView === 'data' && (
+                  <section id="exploration-module" className="animate-in fade-in duration-500">
+                    <div className="flex items-baseline justify-between mb-8">
+                      <h1 className="text-3xl font-extrabold tracking-tight text-[#040057]">
+                        1. 数据探索
+                      </h1>
                     </div>
-                  </div>
 
-                  <CorrelationMatrix data={data} />
-                  
-                  <DataGrid data={data} />
-                </section>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+                      <StatCard title="总变量数" value={data.stats.totalVariables} />
+                      <StatCard title="观测值" value={data.stats.observations.toLocaleString()} />
+                      <StatCard 
+                        title="缺失单元格" 
+                        value={`${data.stats.missingCellsPercentage.toFixed(2)}%`} 
+                        isError={data.stats.missingCellsPercentage > 0} 
+                      />
+                      <StatCard title="重复行" value={data.stats.duplicates.toLocaleString()} />
+                    </div>
 
-                <hr className="border-slate-200" />
+                    <DataAlerts data={data} />
+
+                    <div className="space-y-4">
+                      <h3 className="text-[0.7rem] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">
+                        数据概况报告
+                      </h3>
+                      <div className="grid grid-cols-1 gap-4">
+                        {data.profiles.slice(0, 10).map((profile) => (
+                          profile.type === 'numeric' 
+                            ? <NumericProfileCard key={profile.name} profile={profile} />
+                            : <CategoricalProfileCard key={profile.name} profile={profile} />
+                        ))}
+                        {data.profiles.length > 10 && (
+                          <div className="text-center text-sm text-slate-500 py-4">
+                            仅显示前 10 个变量。
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <CorrelationMatrix data={data} />
+                    
+                    <DataGrid data={data} />
+                  </section>
+                )}
 
                 {/* Chart Editor Module */}
-                <section id="chart-editor">
-                  <div className="mb-8">
-                    <h2 className="text-3xl font-extrabold tracking-tight text-[#040057]">
-                      2. 图表编辑器
-                    </h2>
-                    <p className="text-slate-500 text-sm mt-1">
-                      配置和优化您的科学可视化图表。
-                    </p>
-                  </div>
+                {currentView === 'chart' && (
+                  <section id="chart-editor" className="animate-in fade-in duration-500">
+                    <div className="mb-8">
+                      <h2 className="text-3xl font-extrabold tracking-tight text-[#040057]">
+                        2. 图表构建
+                      </h2>
+                      <p className="text-slate-500 text-sm mt-1">
+                        配置和优化您的科学可视化图表。
+                      </p>
+                    </div>
 
-                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
                     {/* Control Panel */}
                     <div className="xl:col-span-4 space-y-4">
                       <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/60">
@@ -1095,6 +1068,67 @@ export default function App() {
                     </div>
                   </div>
                 </section>
+                )}
+
+                {/* Dashboard Module */}
+                {currentView === 'dashboard' && (
+                  <section id="dashboard-module" className="animate-in fade-in duration-500">
+                    <div className="flex items-baseline justify-between mb-8">
+                      <h1 className="text-3xl font-extrabold tracking-tight text-[#040057]">
+                        3. 数据看板
+                      </h1>
+                      <p className="text-slate-500 text-sm mt-1">
+                        拖拽和缩放卡片以自定义您的数据看板。
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-4 min-h-[800px]">
+                      <ResponsiveGridLayout
+                        className="layout"
+                        layouts={{ lg: dashboardLayout }}
+                        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+                        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                        rowHeight={30}
+                        onLayoutChange={(layout) => setDashboardLayout(layout)}
+                        draggableHandle=".drag-handle"
+                      >
+                        <div key="summary" className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden flex flex-col">
+                          <div className="drag-handle bg-slate-200/50 p-2 cursor-move flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">核心指标</span>
+                          </div>
+                          <div className="p-4 flex-1 grid grid-cols-4 gap-4">
+                            <StatCard title="总变量数" value={data.stats.totalVariables} />
+                            <StatCard title="观测值" value={data.stats.observations.toLocaleString()} />
+                            <StatCard 
+                              title="缺失单元格" 
+                              value={`${data.stats.missingCellsPercentage.toFixed(2)}%`} 
+                              isError={data.stats.missingCellsPercentage > 0} 
+                            />
+                            <StatCard title="重复行" value={data.stats.duplicates.toLocaleString()} />
+                          </div>
+                        </div>
+
+                        <div key="chart" className="bg-white rounded-lg border border-slate-200 overflow-hidden flex flex-col shadow-sm">
+                          <div className="drag-handle bg-slate-50 border-b border-slate-100 p-2 cursor-move flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">图表分析: {chartType}</span>
+                          </div>
+                          <div className="p-4 flex-1 relative min-h-0">
+                            {renderChart()}
+                          </div>
+                        </div>
+
+                        <div key="correlations" className="bg-white rounded-lg border border-slate-200 overflow-hidden flex flex-col shadow-sm">
+                          <div className="drag-handle bg-slate-50 border-b border-slate-100 p-2 cursor-move flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">相关性矩阵</span>
+                          </div>
+                          <div className="p-4 flex-1 overflow-auto">
+                            <CorrelationMatrix data={data} />
+                          </div>
+                        </div>
+                      </ResponsiveGridLayout>
+                    </div>
+                  </section>
+                )}
               </>
             )}
           </div>
