@@ -32,13 +32,33 @@ export interface ProcessedData {
   profiles: ColumnProfile[];
 }
 
-export const parseCSV = (fileOrUrl: File | string): Promise<ProcessedData> => {
+export const parseData = async (fileOrUrl: File | string): Promise<ProcessedData> => {
+  let isJson = false;
+  let contentToParse: string | File = fileOrUrl;
+
+  if (typeof fileOrUrl === 'string') {
+    isJson = fileOrUrl.toLowerCase().endsWith('.json');
+    if (isJson) {
+      const response = await fetch(fileOrUrl);
+      const jsonData = await response.json();
+      return processJsonData(jsonData);
+    }
+  } else if (fileOrUrl instanceof File) {
+    isJson = fileOrUrl.name.toLowerCase().endsWith('.json');
+    if (isJson) {
+      const text = await fileOrUrl.text();
+      const jsonData = JSON.parse(text);
+      return processJsonData(jsonData);
+    }
+  }
+
+  // Fallback to CSV parsing
   return new Promise((resolve, reject) => {
-    Papa.parse(fileOrUrl, {
+    Papa.parse(contentToParse, {
       header: true,
       dynamicTyping: true,
       skipEmptyLines: true,
-      download: typeof fileOrUrl === 'string',
+      download: typeof contentToParse === 'string',
       complete: (results) => {
         if (results.errors.length > 0 && results.data.length === 0) {
           reject(results.errors);
@@ -49,6 +69,24 @@ export const parseCSV = (fileOrUrl: File | string): Promise<ProcessedData> => {
       error: (error) => reject(error),
     });
   });
+};
+
+const processJsonData = (jsonData: any): ProcessedData => {
+  let dataArray: any[] = [];
+  if (Array.isArray(jsonData)) {
+    dataArray = jsonData;
+  } else if (typeof jsonData === 'object' && jsonData !== null) {
+    // Try to find the first array in the object
+    const arrayValues = Object.values(jsonData).filter(Array.isArray);
+    if (arrayValues.length > 0) {
+      dataArray = arrayValues[0];
+    } else {
+      dataArray = [jsonData];
+    }
+  }
+  
+  const fields = dataArray.length > 0 ? Object.keys(dataArray[0]) : [];
+  return processData(dataArray, fields);
 };
 
 const processData = (data: any[], fields: string[]): ProcessedData => {

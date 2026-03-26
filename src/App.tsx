@@ -236,7 +236,13 @@ export default function App() {
     yAxisTickCount, setYAxisTickCount,
     showBrush, setShowBrush,
     typographyOpen, setTypographyOpen,
+    chartTitle, setChartTitle,
+    chartSubtitle, setChartSubtitle,
     fontFamily, setFontFamily,
+    fontSize, setFontSize,
+    axisThickness, setAxisThickness,
+    gridColor, setGridColor,
+    axisColor, setAxisColor,
     customXAxisLabel, setCustomXAxisLabel,
     customYAxisLabel, setCustomYAxisLabel,
     aspectRatio, setAspectRatio,
@@ -246,12 +252,31 @@ export default function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
+  const [urlInput, setUrlInput] = useState('');
+
+  useEffect(() => {
+    // Force Plotly to recalculate its size when aspect ratio changes
+    // This is necessary because Plotly only listens to window resize events
+    // and doesn't automatically detect container size changes
+    const timeout = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 50);
+    return () => clearTimeout(timeout);
+  }, [aspectRatio]);
 
   const handleExportPNG = async () => {
     if (!chartRef.current) return;
     try {
+      // Hide modebar before export
+      const modebar = chartRef.current.querySelector('.modebar-container') as HTMLElement;
+      if (modebar) modebar.style.display = 'none';
+      
       const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(chartRef.current, { backgroundColor: '#ffffff', pixelRatio: 2 });
+      
+      // Restore modebar
+      if (modebar) modebar.style.display = '';
+      
       const link = document.createElement('a');
       link.download = `${chartType.toLowerCase().replace(' ', '-')}-export.png`;
       link.href = dataUrl;
@@ -265,8 +290,16 @@ export default function App() {
   const handleExportSVG = async () => {
     if (!chartRef.current) return;
     try {
+      // Hide modebar before export
+      const modebar = chartRef.current.querySelector('.modebar-container') as HTMLElement;
+      if (modebar) modebar.style.display = 'none';
+      
       const { toSvg } = await import('html-to-image');
       const dataUrl = await toSvg(chartRef.current, { backgroundColor: '#ffffff' });
+      
+      // Restore modebar
+      if (modebar) modebar.style.display = '';
+      
       const link = document.createElement('a');
       link.download = `${chartType.toLowerCase().replace(' ', '-')}-export.svg`;
       link.href = dataUrl;
@@ -348,17 +381,25 @@ export default function App() {
   const chartData = useMemo(() => {
     if (!data || !xAxis) return [];
     
-    // Filter data to only include rows where selected axes are valid numbers
     const selectedYAxes = Object.keys(yAxes).filter(k => yAxes[k]);
     
+    // For heatmap, boxplot, and histogram, we might need categorical x-axis
+    const allowCategoricalX = ['Heatmap', 'Box Plot', 'Histogram', 'Bar Chart', 'Pie Chart'].includes(chartType);
+    
     return data.data.filter(row => {
-      if (typeof row[xAxis] !== 'number') return false;
+      if (!allowCategoricalX && typeof row[xAxis] !== 'number') return false;
+      
+      // For histogram, we only need y-axis if it's selected, otherwise we use x-axis
+      if (chartType === 'Histogram' && selectedYAxes.length === 0) {
+        return true;
+      }
+      
       for (const y of selectedYAxes) {
         if (typeof row[y] !== 'number') return false;
       }
       return true;
     });
-  }, [data, xAxis, yAxes]);
+  }, [data, xAxis, yAxes, chartType]);
 
   // Group data for scatter plot if colorBy is selected
   const groupedScatterData = useMemo(() => {
@@ -383,7 +424,7 @@ export default function App() {
     }
 
     const selectedYAxes = Object.keys(yAxes).filter(k => yAxes[k]);
-    if (selectedYAxes.length === 0 && chartType !== 'Pie Chart') {
+    if (selectedYAxes.length === 0 && chartType !== 'Pie Chart' && chartType !== 'Histogram') {
       return (
         <div className="flex items-center justify-center h-full text-slate-400">
           请至少选择一个 Y 轴。
@@ -395,8 +436,8 @@ export default function App() {
     const yLabel = customYAxisLabel || selectedYAxes[0];
 
     const layout: any = {
-      font: { family: fontFamily },
-      margin: { t: 40, r: 40, b: 60, l: yLabel ? 60 : 40 },
+      font: { family: fontFamily, size: fontSize, color: axisColor },
+      margin: { t: 40, r: 40, b: 80, l: yLabel ? 80 : 40 },
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
       showlegend: showLegend,
@@ -406,20 +447,35 @@ export default function App() {
         y: legendPosition === 'top' ? 1.1 : legendPosition === 'bottom' ? -0.2 : 0.5,
         xanchor: legendPosition === 'top' || legendPosition === 'bottom' ? 'center' : 'left',
         yanchor: legendPosition === 'left' || legendPosition === 'right' ? 'middle' : 'top',
+        font: { size: fontSize, color: axisColor }
       },
       xaxis: {
-        title: xLabel,
+        title: { text: xLabel, font: { size: fontSize + 2, color: axisColor, weight: 'bold' } },
         showgrid: showGrid,
-        gridcolor: '#e2e8f0',
+        gridcolor: gridColor,
         zeroline: false,
+        showline: true,
+        linewidth: axisThickness,
+        linecolor: axisColor,
+        ticks: 'outside',
+        tickwidth: axisThickness,
+        tickcolor: axisColor,
+        tickfont: { size: fontSize, color: axisColor },
         dtick: xAxisInterval === 'auto' ? undefined : xAxisInterval,
         rangeslider: showBrush ? { visible: true } : undefined,
       },
       yaxis: {
-        title: yLabel,
+        title: { text: yLabel, font: { size: fontSize + 2, color: axisColor, weight: 'bold' } },
         showgrid: showGrid,
-        gridcolor: '#e2e8f0',
+        gridcolor: gridColor,
         zeroline: false,
+        showline: true,
+        linewidth: axisThickness,
+        linecolor: axisColor,
+        ticks: 'outside',
+        tickwidth: axisThickness,
+        tickcolor: axisColor,
+        tickfont: { size: fontSize, color: axisColor },
         nticks: yAxisTickCount === 'auto' ? undefined : yAxisTickCount,
       },
       autosize: true,
@@ -496,6 +552,44 @@ export default function App() {
       };
       layout.xaxis.visible = false;
       layout.yaxis.visible = false;
+    } else if (chartType === 'Heatmap') {
+      plotData.push({
+        x: chartData.map(d => d[xAxis]),
+        y: chartData.map(d => d[selectedYAxes[0]]),
+        type: 'histogram2d',
+        colorscale: 'Viridis',
+      });
+    } else if (chartType === 'Box Plot') {
+      selectedYAxes.forEach((y, i) => {
+        plotData.push({
+          y: chartData.map(d => d[y]),
+          x: chartData.map(d => d[xAxis]),
+          type: 'box',
+          name: selectedYAxes.length === 1 && customYAxisLabel ? customYAxisLabel : y,
+          marker: { color: selectedYAxes.length === 1 ? primaryColor : COLORS[i % COLORS.length] },
+        });
+      });
+    } else if (chartType === 'Histogram') {
+      if (selectedYAxes.length === 0) {
+        plotData.push({
+          x: chartData.map(d => d[xAxis]),
+          type: 'histogram',
+          name: customXAxisLabel || xAxis,
+          marker: { color: primaryColor },
+          opacity: 0.7,
+        });
+      } else {
+        selectedYAxes.forEach((y, i) => {
+          plotData.push({
+            x: chartData.map(d => d[y]),
+            type: 'histogram',
+            name: selectedYAxes.length === 1 && customYAxisLabel ? customYAxisLabel : y,
+            marker: { color: selectedYAxes.length === 1 ? primaryColor : COLORS[i % COLORS.length] },
+            opacity: 0.7,
+          });
+        });
+      }
+      layout.barmode = 'overlay';
     } else {
       // Line, Bar, Area
       const plotType = chartType === 'Bar Chart' ? 'bar' : 'scatter';
@@ -526,7 +620,7 @@ export default function App() {
         style={{ width: '100%', height: '100%' }}
         config={{
           responsive: true,
-          displayModeBar: true,
+          displayModeBar: 'hover',
           displaylogo: false,
           modeBarButtonsToRemove: ['lasso2d', 'select2d'],
           toImageButtonOptions: {
@@ -563,7 +657,7 @@ export default function App() {
             
             <input
               type="file"
-              accept=".csv"
+              accept=".csv,.json"
               className="hidden"
               ref={fileInputRef}
               onChange={handleFileUpload}
@@ -577,11 +671,38 @@ export default function App() {
             >
               <CloudUpload className="w-6 h-6 mx-auto text-slate-400 group-hover:text-[#040057] transition-colors mb-2" />
               <p className="text-sm font-semibold text-slate-600">
-                拖拽或点击上传 CSV
+                拖拽或点击上传 CSV/JSON
               </p>
               <p className="text-xs text-slate-400 mt-1">最大 500MB</p>
             </div>
             
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="输入 CSV/JSON URL"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                className="flex-1 bg-white border border-slate-200 text-xs py-2 px-3 rounded-md focus:ring-1 focus:ring-[#040057] outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && urlInput) {
+                    loadData(urlInput);
+                    setUrlInput('');
+                  }
+                }}
+              />
+              <button 
+                onClick={() => {
+                  if (urlInput) {
+                    loadData(urlInput);
+                    setUrlInput('');
+                  }
+                }}
+                className="bg-[#040057] text-white px-3 py-2 rounded-md text-xs font-semibold hover:bg-[#040057]/90 transition-colors"
+              >
+                加载
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 gap-2">
               <button 
                 onClick={() => loadData(SAMPLE_DATASETS.IRIS)}
@@ -748,6 +869,9 @@ export default function App() {
                               <option value="Bar Chart">柱状图 (Bar Chart)</option>
                               <option value="Pie Chart">饼图 (Pie Chart)</option>
                               <option value="Radar Chart">雷达图 (Radar Chart)</option>
+                              <option value="Heatmap">热力图 (Heatmap)</option>
+                              <option value="Box Plot">箱线图 (Box Plot)</option>
+                              <option value="Histogram">直方图 (Histogram)</option>
                             </select>
                           </div>
                           <div className="space-y-1.5">
@@ -903,6 +1027,65 @@ export default function App() {
                                 ))}
                               </div>
                             </div>
+                            
+                            <div className="space-y-1.5 mt-4 pt-4 border-t border-slate-100">
+                              <label className="text-[0.6rem] font-black text-slate-400 uppercase tracking-widest">
+                                学术图表样式设置
+                              </label>
+                              
+                              <div className="space-y-3 mt-2">
+                                <div>
+                                  <div className="flex justify-between mb-1">
+                                    <label className="text-[0.7rem] font-medium text-slate-700">字体大小</label>
+                                    <span className="text-[0.7rem] text-slate-500">{fontSize}px</span>
+                                  </div>
+                                  <input 
+                                    type="range" 
+                                    min="8" 
+                                    max="24" 
+                                    value={fontSize} 
+                                    onChange={(e) => setFontSize(Number(e.target.value))} 
+                                    className="w-full accent-[#040057]" 
+                                  />
+                                </div>
+                                
+                                <div>
+                                  <div className="flex justify-between mb-1">
+                                    <label className="text-[0.7rem] font-medium text-slate-700">坐标轴粗细</label>
+                                    <span className="text-[0.7rem] text-slate-500">{axisThickness}px</span>
+                                  </div>
+                                  <input 
+                                    type="range" 
+                                    min="0.5" 
+                                    max="5" 
+                                    step="0.5"
+                                    value={axisThickness} 
+                                    onChange={(e) => setAxisThickness(Number(e.target.value))} 
+                                    className="w-full accent-[#040057]" 
+                                  />
+                                </div>
+                                
+                                <div className="flex items-center justify-between">
+                                  <label className="text-[0.7rem] font-medium text-slate-700">坐标轴颜色</label>
+                                  <input 
+                                    type="color" 
+                                    value={axisColor} 
+                                    onChange={(e) => setAxisColor(e.target.value)} 
+                                    className="w-8 h-8 rounded cursor-pointer border-0 p-0" 
+                                  />
+                                </div>
+                                
+                                <div className="flex items-center justify-between">
+                                  <label className="text-[0.7rem] font-medium text-slate-700">网格线颜色</label>
+                                  <input 
+                                    type="color" 
+                                    value={gridColor} 
+                                    onChange={(e) => setGridColor(e.target.value)} 
+                                    className="w-8 h-8 rounded cursor-pointer border-0 p-0" 
+                                  />
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -933,10 +1116,12 @@ export default function App() {
                                 className="w-full bg-[#f2f4f6] border-slate-200 text-xs py-2 px-3 rounded-md focus:ring-1 focus:ring-[#040057] outline-none"
                               >
                                 <option value="auto">自适应 (Auto)</option>
-                                <option value="aspect-square">1:1 (Square)</option>
-                                <option value="aspect-[4/3]">4:3 (Standard)</option>
-                                <option value="aspect-video">16:9 (Widescreen)</option>
-                                <option value="aspect-[21/9]">21:9 (Ultrawide)</option>
+                                <option value="1 / 1">1:1 (正方形)</option>
+                                <option value="4 / 3">4:3 (横向标准)</option>
+                                <option value="16 / 9">16:9 (横向宽屏)</option>
+                                <option value="21 / 9">21:9 (横向超宽)</option>
+                                <option value="3 / 4">3:4 (竖向标准)</option>
+                                <option value="9 / 16">9:16 (竖向手机屏)</option>
                               </select>
                             </div>
                             <div className="space-y-1.5">
@@ -1018,38 +1203,65 @@ export default function App() {
                     </div>
 
                     {/* Preview Area */}
-                    <div className="xl:col-span-8 space-y-6">
+                    <div className="xl:col-span-8 space-y-6 flex flex-col items-center w-full">
                       <div 
                         ref={chartRef}
-                        className={cn("bg-white rounded-xl shadow-2xl border border-slate-100 relative flex flex-col p-8 overflow-hidden group transition-all duration-300", aspectRatio === 'auto' ? 'min-h-[500px]' : aspectRatio)}
+                        className={cn(
+                          "bg-white rounded-xl shadow-2xl border border-slate-100 relative flex flex-col p-8 group overflow-hidden mx-auto", 
+                          aspectRatio === 'auto' ? 'min-h-[500px] w-full' : ''
+                        )}
+                        style={{
+                          aspectRatio: aspectRatio === 'auto' ? undefined : aspectRatio,
+                          width: '100%',
+                          maxWidth: (() => {
+                            if (aspectRatio === 'auto') return '100%';
+                            const [w, h] = aspectRatio.split('/').map(s => parseFloat(s.trim()));
+                            if (w && h) {
+                              // Ensure the card fits within 75vh while maintaining aspect ratio
+                              return `min(100%, calc(75vh * ${w / h}))`;
+                            }
+                            return '100%';
+                          })(),
+                          fontFamily,
+                        }}
                       >
-                        <div className="absolute inset-0 bg-slate-50/20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="flex justify-between items-center mb-8">
-                          <div>
-                            <h4 className="font-bold text-slate-800 text-lg">
-                              {chartType} 分析
-                            </h4>
-                            <p className="text-[0.65rem] text-slate-400 font-mono tracking-wider italic">
-                              {xAxis} vs {Object.keys(yAxes).filter(k => yAxes[k]).join(', ')}
-                            </p>
+                        <div className="absolute inset-0 bg-slate-50/20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                        <div className="flex justify-between items-center mb-8 relative z-10 shrink-0">
+                          <div className="w-full">
+                            <input
+                              type="text"
+                              value={chartTitle || `${chartType} 分析`}
+                              onChange={(e) => setChartTitle(e.target.value)}
+                              className="font-bold text-slate-800 text-lg bg-transparent border-none outline-none hover:bg-slate-50 focus:bg-slate-50 focus:ring-1 focus:ring-slate-200 rounded px-1 -ml-1 w-full transition-colors"
+                              placeholder="输入图表标题..."
+                            />
+                            <input
+                              type="text"
+                              value={chartSubtitle || `${xAxis} vs ${Object.keys(yAxes).filter(k => yAxes[k]).join(', ')}`}
+                              onChange={(e) => setChartSubtitle(e.target.value)}
+                              className="text-[0.65rem] text-slate-400 font-mono tracking-wider italic bg-transparent border-none outline-none hover:bg-slate-50 focus:bg-slate-50 focus:ring-1 focus:ring-slate-200 rounded px-1 -ml-1 w-full mt-1 transition-colors"
+                              placeholder="输入图表副标题..."
+                            />
                           </div>
                         </div>
 
                         {/* Chart Container */}
-                        <div 
-                          className="flex-1 relative w-full h-full min-h-[300px] bg-white"
-                          style={{ fontFamily }}
-                        >
-                          {renderChart()}
-                        </div>
-                        
-                        <div className="mt-6 flex justify-center text-[0.6rem] font-black text-slate-400 uppercase tracking-[0.3em]">
-                          {customXAxisLabel || xAxis}
+                        <div className={cn("flex-1 relative w-full bg-white", aspectRatio === 'auto' ? 'min-h-[300px]' : 'min-h-0')}>
+                          <div className="absolute inset-0">
+                            {renderChart()}
+                          </div>
                         </div>
                       </div>
 
                       {/* Export Controls */}
-                      <div className="flex justify-end gap-3">
+                      <div className="flex justify-end gap-3 w-full" style={{
+                        maxWidth: (() => {
+                          if (aspectRatio === 'auto') return '100%';
+                          const [w, h] = aspectRatio.split('/').map(s => parseFloat(s.trim()));
+                          if (w && h) return `min(100%, calc(75vh * ${w / h}))`;
+                          return '100%';
+                        })()
+                      }}>
                         <button 
                           onClick={handleExportPNG}
                           className="flex items-center gap-2 px-6 py-2.5 border-2 border-[#040057] text-[#040057] font-bold text-[0.65rem] uppercase tracking-widest rounded-md hover:bg-[#040057]/5 transition-colors"
@@ -1085,11 +1297,28 @@ export default function App() {
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-4 min-h-[800px]">
                       <ResponsiveGridLayout
                         className="layout"
-                        layouts={{ lg: dashboardLayout }}
+                        layouts={{ 
+                          lg: dashboardLayout,
+                          md: dashboardLayout,
+                          sm: [
+                            { i: 'summary', x: 0, y: 0, w: 1, h: 3, static: true },
+                            { i: 'chart', x: 0, y: 3, w: 1, h: 10 },
+                            { i: 'correlations', x: 0, y: 13, w: 1, h: 10 }
+                          ],
+                          xs: [
+                            { i: 'summary', x: 0, y: 0, w: 1, h: 4, static: true },
+                            { i: 'chart', x: 0, y: 4, w: 1, h: 10 },
+                            { i: 'correlations', x: 0, y: 14, w: 1, h: 10 }
+                          ]
+                        }}
                         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-                        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                        cols={{ lg: 12, md: 12, sm: 1, xs: 1, xxs: 1 }}
                         rowHeight={30}
-                        onLayoutChange={(layout) => setDashboardLayout(layout)}
+                        onLayoutChange={(layout, layouts) => {
+                          if (layouts.lg) {
+                            setDashboardLayout(layouts.lg);
+                          }
+                        }}
                         draggableHandle=".drag-handle"
                       >
                         <div key="summary" className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden flex flex-col">

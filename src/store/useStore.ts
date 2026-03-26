@@ -47,8 +47,20 @@ interface AppState {
   // Typography & Axes State
   typographyOpen: boolean;
   setTypographyOpen: (open: boolean) => void;
+  chartTitle: string;
+  setChartTitle: (title: string) => void;
+  chartSubtitle: string;
+  setChartSubtitle: (subtitle: string) => void;
   fontFamily: string;
   setFontFamily: (font: string) => void;
+  fontSize: number;
+  setFontSize: (size: number) => void;
+  axisThickness: number;
+  setAxisThickness: (thickness: number) => void;
+  gridColor: string;
+  setGridColor: (color: string) => void;
+  axisColor: string;
+  setAxisColor: (color: string) => void;
   customXAxisLabel: string;
   setCustomXAxisLabel: (label: string) => void;
   customYAxisLabel: string;
@@ -107,8 +119,20 @@ export const useStore = create<AppState>((set) => ({
 
   typographyOpen: false,
   setTypographyOpen: (typographyOpen) => set({ typographyOpen }),
+  chartTitle: '',
+  setChartTitle: (chartTitle) => set({ chartTitle }),
+  chartSubtitle: '',
+  setChartSubtitle: (chartSubtitle) => set({ chartSubtitle }),
   fontFamily: 'Inter',
   setFontFamily: (fontFamily) => set({ fontFamily }),
+  fontSize: 14,
+  setFontSize: (fontSize) => set({ fontSize }),
+  axisThickness: 1.5,
+  setAxisThickness: (axisThickness) => set({ axisThickness }),
+  gridColor: '#e2e8f0',
+  setGridColor: (gridColor) => set({ gridColor }),
+  axisColor: '#333333',
+  setAxisColor: (axisColor) => set({ axisColor }),
   customXAxisLabel: '',
   setCustomXAxisLabel: (customXAxisLabel) => set({ customXAxisLabel }),
   customYAxisLabel: '',
