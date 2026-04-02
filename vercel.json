@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/modelscope/:path*",
+      "destination": "https://api-inference.modelscope.cn/v1/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
