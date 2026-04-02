@@ -69,8 +69,8 @@ interface AppState {
   setAspectRatio: (ratio: string) => void;
 
   // View State
-  currentView: 'data' | 'chart' | 'dashboard';
-  setCurrentView: (view: 'data' | 'chart' | 'dashboard') => void;
+  currentView: 'data' | 'chart' | 'dashboard' | 'ai_analysis';
+  setCurrentView: (view: 'data' | 'chart' | 'dashboard' | 'ai_analysis') => void;
 
   // Dashboard State
   dashboardLayout: any[];

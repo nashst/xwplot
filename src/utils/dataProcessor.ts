@@ -54,20 +54,20 @@ export const parseData = async (fileOrUrl: File | string): Promise<ProcessedData
 
   // Fallback to CSV parsing
   return new Promise((resolve, reject) => {
-    Papa.parse(contentToParse, {
+    Papa.parse(contentToParse as any, {
       header: true,
       dynamicTyping: true,
       skipEmptyLines: true,
       download: typeof contentToParse === 'string',
-      complete: (results) => {
+      complete: (results: any) => {
         if (results.errors.length > 0 && results.data.length === 0) {
           reject(results.errors);
         } else {
           resolve(processData(results.data, results.meta.fields || []));
         }
       },
-      error: (error) => reject(error),
-    });
+      error: (error: any) => reject(error),
+    } as any);
   });
 };
 

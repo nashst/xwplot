@@ -20,12 +20,13 @@ import {
   LayoutDashboard,
   FileSpreadsheet,
   Presentation,
-  Database
+  Database,
+  Sparkles
 } from 'lucide-react';
 import Plot from 'react-plotly.js';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { parseCSV, ProcessedData, ColumnProfile } from './utils/dataProcessor';
+import { ProcessedData, ColumnProfile } from './utils/dataProcessor';
 import { CorrelationMatrix } from './components/CorrelationMatrix';
 import { DataAlerts } from './components/DataAlerts';
 import { DataGrid } from './components/DataGrid';
@@ -213,6 +214,7 @@ const CategoricalProfileCard = ({ profile }: { profile: ColumnProfile }) => {
   );
 };
 
+import { AIAnalysis } from './components/AIAnalysis';
 import { useStore } from './store/useStore';
 
 export default function App() {
@@ -756,6 +758,18 @@ export default function App() {
                 数据看板
               </span>
             </button>
+            <button
+              onClick={() => setCurrentView('ai_analysis')}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 text-left mt-2 border border-transparent",
+                currentView === 'ai_analysis' ? "bg-[#040057] text-white shadow-md border-[#040057]" : "bg-gradient-to-r from-blue-50 to-indigo-50 text-[#040057] hover:border-blue-200"
+              )}
+            >
+              <Sparkles className={cn("w-5 h-5", currentView === 'ai_analysis' ? "text-white" : "text-[#040057]")} />
+              <span className="text-xs font-bold uppercase tracking-wider">
+                AI 智能分析
+              </span>
+            </button>
           </nav>
         </aside>
 
@@ -1282,6 +1296,13 @@ export default function App() {
                 </section>
                 )}
 
+                {/* AI Analysis Module */}
+                {currentView === 'ai_analysis' && (
+                  <section id="ai-analysis" className="animate-in fade-in duration-500 h-full">
+                    <AIAnalysis />
+                  </section>
+                )}
+
                 {/* Dashboard Module */}
                 {currentView === 'dashboard' && (
                   <section id="dashboard-module" className="animate-in fade-in duration-500">
@@ -1316,7 +1337,7 @@ export default function App() {
                         rowHeight={30}
                         onLayoutChange={(layout, layouts) => {
                           if (layouts.lg) {
-                            setDashboardLayout(layouts.lg);
+                            setDashboardLayout(layouts.lg as any[]);
                           }
                         }}
                         draggableHandle=".drag-handle"
