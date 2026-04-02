@@ -2,8 +2,26 @@ import OpenAI from 'openai';
 
 const API_KEY = (import.meta as any).env.VITE_MODELSCOPE_API_KEY || 'ms-50c2b638-f660-40c5-a96e-30d010a556b9';
 
+const getBaseURL = () => {
+  if (typeof window !== 'undefined') {
+    try {
+      // Handle sandboxed iframes where origin might be "null"
+      if (window.location.origin && window.location.origin !== 'null') {
+        return `${window.location.origin}/api/modelscope`;
+      }
+      // Fallback to constructing from href
+      const url = new URL('/api/modelscope', window.location.href);
+      return url.toString();
+    } catch (e) {
+      console.warn('Failed to construct base URL from window.location, falling back to direct API');
+      return 'https://api-inference.modelscope.cn/v1';
+    }
+  }
+  return 'http://localhost:3000/api/modelscope'; // Fallback absolute URL for non-browser environments
+};
+
 const openai = new OpenAI({
-  baseURL: typeof window !== 'undefined' ? `${window.location.origin}/api/modelscope` : '/api/modelscope',
+  baseURL: getBaseURL(),
   apiKey: API_KEY,
   dangerouslyAllowBrowser: true
 });

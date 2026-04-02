@@ -69,12 +69,8 @@ interface AppState {
   setAspectRatio: (ratio: string) => void;
 
   // View State
-  currentView: 'data' | 'chart' | 'dashboard' | 'ai_analysis';
-  setCurrentView: (view: 'data' | 'chart' | 'dashboard' | 'ai_analysis') => void;
-
-  // Dashboard State
-  dashboardLayout: any[];
-  setDashboardLayout: (layout: any[]) => void;
+  currentView: 'data' | 'chart' | 'ai_analysis';
+  setCurrentView: (view: 'data' | 'chart' | 'ai_analysis') => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -142,11 +138,4 @@ export const useStore = create<AppState>((set) => ({
 
   currentView: 'data',
   setCurrentView: (currentView) => set({ currentView }),
-
-  dashboardLayout: [
-    { i: 'summary', x: 0, y: 0, w: 12, h: 2, static: true },
-    { i: 'chart', x: 0, y: 2, w: 8, h: 10 },
-    { i: 'correlations', x: 8, y: 2, w: 4, h: 10 }
-  ],
-  setDashboardLayout: (dashboardLayout) => set({ dashboardLayout }),
 }));

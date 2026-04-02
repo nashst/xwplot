@@ -31,11 +31,6 @@ import { CorrelationMatrix } from './components/CorrelationMatrix';
 import { DataAlerts } from './components/DataAlerts';
 import { DataGrid } from './components/DataGrid';
 import { calculateLinearRegression } from './utils/regression';
-import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
-import 'react-grid-layout/css/styles.css';
-import 'react-resizable/css/styles.css';
-
-const ResponsiveGridLayout = WidthProvider(Responsive);
 
 // Utility for Tailwind class merging
 function cn(...inputs: ClassValue[]) {
@@ -248,8 +243,7 @@ export default function App() {
     customXAxisLabel, setCustomXAxisLabel,
     customYAxisLabel, setCustomYAxisLabel,
     aspectRatio, setAspectRatio,
-    currentView, setCurrentView,
-    dashboardLayout, setDashboardLayout
+    currentView, setCurrentView
   } = useStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -744,18 +738,6 @@ export default function App() {
               <BarChart3 className="w-5 h-5" />
               <span className="text-xs font-bold uppercase tracking-wider">
                 图表构建
-              </span>
-            </button>
-            <button
-              onClick={() => setCurrentView('dashboard')}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 text-left",
-                currentView === 'dashboard' ? "bg-white text-[#040057] shadow-sm" : "text-slate-500 hover:bg-slate-100"
-              )}
-            >
-              <LayoutDashboard className="w-5 h-5" />
-              <span className="text-xs font-bold uppercase tracking-wider">
-                数据看板
               </span>
             </button>
             <button
@@ -1300,83 +1282,6 @@ export default function App() {
                 {currentView === 'ai_analysis' && (
                   <section id="ai-analysis" className="animate-in fade-in duration-500 h-full">
                     <AIAnalysis />
-                  </section>
-                )}
-
-                {/* Dashboard Module */}
-                {currentView === 'dashboard' && (
-                  <section id="dashboard-module" className="animate-in fade-in duration-500">
-                    <div className="flex items-baseline justify-between mb-8">
-                      <h1 className="text-3xl font-extrabold tracking-tight text-[#040057]">
-                        3. 数据看板
-                      </h1>
-                      <p className="text-slate-500 text-sm mt-1">
-                        拖拽和缩放卡片以自定义您的数据看板。
-                      </p>
-                    </div>
-
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-4 min-h-[800px]">
-                      <ResponsiveGridLayout
-                        className="layout"
-                        layouts={{ 
-                          lg: dashboardLayout,
-                          md: dashboardLayout,
-                          sm: [
-                            { i: 'summary', x: 0, y: 0, w: 1, h: 3, static: true },
-                            { i: 'chart', x: 0, y: 3, w: 1, h: 10 },
-                            { i: 'correlations', x: 0, y: 13, w: 1, h: 10 }
-                          ],
-                          xs: [
-                            { i: 'summary', x: 0, y: 0, w: 1, h: 4, static: true },
-                            { i: 'chart', x: 0, y: 4, w: 1, h: 10 },
-                            { i: 'correlations', x: 0, y: 14, w: 1, h: 10 }
-                          ]
-                        }}
-                        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-                        cols={{ lg: 12, md: 12, sm: 1, xs: 1, xxs: 1 }}
-                        rowHeight={30}
-                        onLayoutChange={(layout, layouts) => {
-                          if (layouts.lg) {
-                            setDashboardLayout(layouts.lg as any[]);
-                          }
-                        }}
-                        draggableHandle=".drag-handle"
-                      >
-                        <div key="summary" className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden flex flex-col">
-                          <div className="drag-handle bg-slate-200/50 p-2 cursor-move flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">核心指标</span>
-                          </div>
-                          <div className="p-4 flex-1 grid grid-cols-4 gap-4">
-                            <StatCard title="总变量数" value={data.stats.totalVariables} />
-                            <StatCard title="观测值" value={data.stats.observations.toLocaleString()} />
-                            <StatCard 
-                              title="缺失单元格" 
-                              value={`${data.stats.missingCellsPercentage.toFixed(2)}%`} 
-                              isError={data.stats.missingCellsPercentage > 0} 
-                            />
-                            <StatCard title="重复行" value={data.stats.duplicates.toLocaleString()} />
-                          </div>
-                        </div>
-
-                        <div key="chart" className="bg-white rounded-lg border border-slate-200 overflow-hidden flex flex-col shadow-sm">
-                          <div className="drag-handle bg-slate-50 border-b border-slate-100 p-2 cursor-move flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">图表分析: {chartType}</span>
-                          </div>
-                          <div className="p-4 flex-1 relative min-h-0">
-                            {renderChart()}
-                          </div>
-                        </div>
-
-                        <div key="correlations" className="bg-white rounded-lg border border-slate-200 overflow-hidden flex flex-col shadow-sm">
-                          <div className="drag-handle bg-slate-50 border-b border-slate-100 p-2 cursor-move flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">相关性矩阵</span>
-                          </div>
-                          <div className="p-4 flex-1 overflow-auto">
-                            <CorrelationMatrix data={data} />
-                          </div>
-                        </div>
-                      </ResponsiveGridLayout>
-                    </div>
                   </section>
                 )}
               </>
